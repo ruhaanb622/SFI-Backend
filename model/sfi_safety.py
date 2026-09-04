@@ -17,13 +17,18 @@ class TracksideInspection(db.Model):
     __tablename__ = "sfi_trackside_inspections"
 
     id = db.Column(db.Integer, primary_key=True)
-    gear_id = db.Column(db.Integer, db.ForeignKey("user_gear.id"), nullable=False, index=True)
+    gear_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user_gear.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     inspector_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     outcome = db.Column(db.String(20), nullable=False, default="attention")
     checklist_json = db.Column(db.Text, nullable=False, default="{}")
     notes = db.Column(db.String(1000), nullable=False, default="")
     next_due_on = db.Column(db.String(20), nullable=False, default="")
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
 
     def to_dict(self):
         import json
@@ -51,13 +56,13 @@ class ManufacturerReview(db.Model):
     submitted_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     manufacturer_name = db.Column(db.String(255), nullable=False)
     product_name = db.Column(db.String(255), nullable=False)
-    spec_number = db.Column(db.String(80), nullable=False)
+    spec_number = db.Column(db.String(80), nullable=False, index=True)
     evidence_url = db.Column(db.String(1000), nullable=False, default="")
     submission_note = db.Column(db.String(2000), nullable=False, default="")
     status = db.Column(db.String(30), nullable=False, default="pending", index=True)
     reviewer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     review_note = db.Column(db.String(2000), nullable=False, default="")
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
     reviewed_at = db.Column(db.DateTime, nullable=True)
 
     def to_dict(self):
@@ -84,7 +89,7 @@ class SafetyLearningProgress(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     module_id = db.Column(db.String(80), nullable=False)
     completed = db.Column(db.Boolean, nullable=False, default=False)
     score = db.Column(db.Integer, nullable=True)
