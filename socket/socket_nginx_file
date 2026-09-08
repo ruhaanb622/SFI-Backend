@@ -1,0 +1,24 @@
+server {
+    server_name parking.stu.nighthawkcodingsociety.com;
+
+    location /socket.io/ {
+        proxy_pass http://localhost:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+    }
+
+    listen 443 ssl;
+    ssl_certificate /etc/letsencrypt/live/parking.stu.nighthawkcodingsociety.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/parking.stu.nighthawkcodingsociety.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+}

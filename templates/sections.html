@@ -1,0 +1,125 @@
+{% extends "layouts/base.html" %}
+
+{% block body %}
+
+<div class="container mt-5">
+    <h1>Section Management</h1>
+
+    <table class="table table-striped" id="sectionsTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Abbreviation</th>
+                <th>Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for section in sections %}
+            <tr id="section-{{ section.id }}">
+                <td>{{ section.id }}</td>
+                <td>{{ section._abbreviation }}</td>
+                <td>{{ section._name }}</td>
+                <td>
+                    <button class="btn btn-primary edit-btn" data-id="{{ section.id }}">Edit</button>
+                    {% if current_user.role == 'Admin' %}
+                    <button class="btn btn-danger delete-btn" data-id="{{ section.id }}">Delete</button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Add New Section Button -->
+    {% if current_user.role == 'Admin' %}
+    <button class="btn btn-success" id="addSectionBtn">Add New Section</button>
+    {% endif %}
+</div>
+
+<script>
+    $(document).ready(function () {
+        // Initialize DataTables
+        $("#sectionsTable").DataTable();
+
+        // Handle Add Section action
+        $("#addSectionBtn").on("click", function () {
+            const name = prompt("Enter section name:");
+            const abbreviation = prompt("Enter section abbreviation:");
+            
+            if (name && abbreviation) {
+                fetch("/api/section/create", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: name, abbreviation: abbreviation })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message || "Section created successfully.");
+                        location.reload();
+                    })
+                    .catch(error => {
+                        console.error("Error creating section:", error);
+                        alert("Error creating section.");
+                    });
+            }
+        });
+
+        // Handle Edit action
+        document.querySelectorAll(".edit-btn").forEach(button => {
+            button.addEventListener("click", function () {
+                const id = this.dataset.id;
+                const row = document.getElementById(`section-${id}`);
+                const currentAbbr = row.children[1].textContent;
+                const currentName = row.children[2].textContent;
+                
+                const newName = prompt("Enter new section name:", currentName);
+                const newAbbr = prompt("Enter new section abbreviation:", currentAbbr);
+                
+                if (newName && newAbbr) {
+                    fetch(`/api/section/update/${id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: newName, abbreviation: newAbbr })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            alert(data.message || "Section updated successfully.");
+                            location.reload();
+                        })
+                        .catch(error => {
+                            console.error("Error updating section:", error);
+                            alert("Error updating section.");
+                        });
+                }
+            });
+        });
+
+        // Handle delete action
+        document.querySelectorAll(".delete-btn").forEach(button => {
+            button.addEventListener("click", function () {
+                const id = this.dataset.id;
+                if (confirm("Are you sure you want to delete this section?")) {
+                    fetch(`/api/section/delete/${id}`, {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            alert(data.message || "Section deleted successfully.");
+                            location.reload();
+                        })
+                        .catch(error => {
+                            console.error("Error deleting section:", error);
+                            alert("Error deleting section.");
+                        });
+                }
+            });
+        });
+    });
+</script>
+
+{% endblock %}
+
+{% block background %}
+{% endblock %}

@@ -1,0 +1,298 @@
+{% extends "layouts/base.html" %}
+
+{% block body %}
+
+<div class="container mt-5">
+    <h1>Persona Management</h1>
+
+    <table class="table table-striped" id="personaTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Alias</th>
+                <th>Category</th>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Archetype</th>
+                <th>Personality Type</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for persona in personas %}
+            <tr id="persona-{{ persona.id }}">
+                <td>{{ persona.id }}</td>
+                <td>{{ persona._alias }}</td>
+                <td>{{ persona._category }}</td>
+                <td>{{ persona._bio_map.title if persona._bio_map else '' }}</td>
+                <td class="description-cell">{{ persona._bio_map.description[:100] if persona._bio_map and persona._bio_map.description else '' }}...</td>
+                <td>{{ persona._bio_map.archetype|join(', ') if persona._bio_map and persona._bio_map.archetype else '' }}</td>
+                <td>{{ persona._bio_map.personality_type|join(', ') if persona._bio_map and persona._bio_map.personality_type else '' }}</td>
+                <td>
+                    <button class="btn btn-info btn-sm view-btn" data-id="{{ persona.id }}">View</button>
+                    <button class="btn btn-primary btn-sm edit-btn" data-id="{{ persona.id }}">Edit</button>
+                    {% if current_user.role == 'Admin' %}
+                    <button class="btn btn-danger btn-sm delete-btn" data-id="{{ persona.id }}">Delete</button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Add New Persona Button -->
+    {% if current_user.role == 'Admin' %}
+    <button class="btn btn-success" id="addPersonaBtn">Add New Persona</button>
+    {% endif %}
+</div>
+
+<!-- View/Edit Modal -->
+<div class="modal fade" id="personaModal" tabindex="-1" role="dialog" aria-labelledby="personaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="personaModalLabel">Persona Details</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="personaForm">
+                    <input type="hidden" id="personaId">
+                    <input type="hidden" id="formMode" value="view">
+                    
+                    <div class="form-group">
+                        <label for="personaAlias">Alias</label>
+                        <input type="text" class="form-control" id="personaAlias" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="personaCategory">Category</label>
+                        <select class="form-control" id="personaCategory" required>
+                            <option value="student">Student</option>
+                            <option value="social">Social</option>
+                            <option value="achievement">Achievement</option>
+                            <option value="fantasy">Fantasy</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="personaTitle">Title</label>
+                        <input type="text" class="form-control" id="personaTitle" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="personaDescription">Description</label>
+                        <textarea class="form-control" id="personaDescription" rows="4" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="personaArchetype">Archetype (comma-separated)</label>
+                        <input type="text" class="form-control" id="personaArchetype" placeholder="e.g. Introvert, Analytical, Independent">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="personaPersonalityType">Personality Type (comma-separated)</label>
+                        <input type="text" class="form-control" id="personaPersonalityType" placeholder="e.g. Ambitious, Focused">
+                    </div>
+                    
+                    <hr>
+                    <h5>Empathy Map (Optional)</h5>
+                    
+                    <div class="form-group">
+                        <label for="personaSays">Says (one per line)</label>
+                        <textarea class="form-control" id="personaSays" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="personaThinks">Thinks (one per line)</label>
+                        <textarea class="form-control" id="personaThinks" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="personaFeels">Feels (one per line)</label>
+                        <textarea class="form-control" id="personaFeels" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="personaDoes">Does (one per line)</label>
+                        <textarea class="form-control" id="personaDoes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="savePersonaBtn" style="display:none;">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .description-cell {
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+</style>
+
+<script>
+    $(document).ready(function () {
+        // Initialize DataTables
+        $("#personaTable").DataTable();
+
+        // Helper function to parse comma-separated values to array
+        function toArray(str) {
+            if (!str || str.trim() === '') return [];
+            return str.split(',').map(s => s.trim()).filter(s => s);
+        }
+
+        // Helper function to parse line-separated values to array
+        function toLineArray(str) {
+            if (!str || str.trim() === '') return [];
+            return str.split('\n').map(s => s.trim()).filter(s => s);
+        }
+
+        // Helper function to set form to readonly or editable
+        function setFormMode(mode) {
+            const isReadOnly = mode === 'view';
+            $('#personaForm input, #personaForm textarea, #personaForm select').prop('disabled', isReadOnly);
+            $('#savePersonaBtn').toggle(!isReadOnly);
+            $('#formMode').val(mode);
+        }
+
+        // Fetch persona details and populate modal
+        async function loadPersonaDetails(id) {
+            try {
+                const response = await fetch(`/api/persona/${id}`);
+                if (!response.ok) throw new Error('Failed to fetch persona details');
+                
+                const persona = await response.json();
+                
+                $('#personaId').val(persona.id);
+                $('#personaAlias').val(persona.alias);
+                $('#personaCategory').val(persona.category);
+                $('#personaTitle').val(persona.bio_map.title || '');
+                $('#personaDescription').val(persona.bio_map.description || '');
+                $('#personaArchetype').val(persona.bio_map.archetype ? persona.bio_map.archetype.join(', ') : '');
+                $('#personaPersonalityType').val(persona.bio_map.personality_type ? persona.bio_map.personality_type.join(', ') : '');
+                
+                if (persona.empathy_map) {
+                    $('#personaSays').val(persona.empathy_map.says ? persona.empathy_map.says.join('\n') : '');
+                    $('#personaThinks').val(persona.empathy_map.thinks ? persona.empathy_map.thinks.join('\n') : '');
+                    $('#personaFeels').val(persona.empathy_map.feels ? persona.empathy_map.feels.join('\n') : '');
+                    $('#personaDoes').val(persona.empathy_map.does ? persona.empathy_map.does.join('\n') : '');
+                } else {
+                    $('#personaSays, #personaThinks, #personaFeels, #personaDoes').val('');
+                }
+            } catch (error) {
+                console.error('Error loading persona:', error);
+                alert('Error loading persona details.');
+            }
+        }
+
+        // Handle View button
+        $(document).on('click', '.view-btn', async function () {
+            const id = $(this).data('id');
+            await loadPersonaDetails(id);
+            setFormMode('view');
+            $('#personaModalLabel').text('View Persona');
+            $('#personaModal').modal('show');
+        });
+
+        // Handle Edit button
+        $(document).on('click', '.edit-btn', async function () {
+            const id = $(this).data('id');
+            await loadPersonaDetails(id);
+            setFormMode('edit');
+            $('#personaModalLabel').text('Edit Persona');
+            $('#personaModal').modal('show');
+        });
+
+        // Handle Add New Persona button
+        $('#addPersonaBtn').on('click', function () {
+            $('#personaForm')[0].reset();
+            $('#personaId').val('');
+            setFormMode('edit');
+            $('#personaModalLabel').text('Add New Persona');
+            $('#personaModal').modal('show');
+        });
+
+        // Handle Save button
+        $('#savePersonaBtn').on('click', async function () {
+            const personaId = $('#personaId').val();
+            const isNew = !personaId;
+            
+            const bio_map = {
+                title: $('#personaTitle').val(),
+                description: $('#personaDescription').val(),
+                archetype: toArray($('#personaArchetype').val()),
+                personality_type: toArray($('#personaPersonalityType').val())
+            };
+            
+            const empathy_map = {
+                says: toLineArray($('#personaSays').val()),
+                thinks: toLineArray($('#personaThinks').val()),
+                feels: toLineArray($('#personaFeels').val()),
+                does: toLineArray($('#personaDoes').val())
+            };
+            
+            const data = {
+                alias: $('#personaAlias').val(),
+                category: $('#personaCategory').val(),
+                bio_map: bio_map,
+                empathy_map: empathy_map
+            };
+            
+            try {
+                const url = isNew ? '/api/persona/create' : `/api/persona/update/${personaId}`;
+                const method = isNew ? 'POST' : 'PUT';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(result.message || 'Persona saved successfully.');
+                    $('#personaModal').modal('hide');
+                    location.reload();
+                } else {
+                    alert(result.message || 'Error saving persona.');
+                }
+            } catch (error) {
+                console.error('Error saving persona:', error);
+                alert('Error saving persona.');
+            }
+        });
+
+        // Handle delete button
+        $(document).on('click', '.delete-btn', async function () {
+            const id = $(this).data('id');
+            if (confirm('Are you sure you want to delete this persona?')) {
+                try {
+                    const response = await fetch(`/api/persona/delete/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    const data = await response.json();
+                    alert(data.message || 'Persona deleted successfully.');
+                    location.reload();
+                } catch (error) {
+                    console.error('Error deleting persona:', error);
+                    alert('Error deleting persona.');
+                }
+            }
+        });
+    });
+</script>
+
+{% endblock %}
+
+{% block background %}
+{% endblock %}

@@ -1,0 +1,21 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.env.*
+.env.swp
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# instance data, databases
+
+instance/data.json
+instance/data.json.*.bak
+instance/data/jokes.json
